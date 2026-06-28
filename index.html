@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>학교 급식 조회</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Noto Sans KR", sans-serif;
+      background: linear-gradient(135deg, #fff7df, #e8f7ff);
+      color: #333;
+    }
+
+    .app {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 28px 18px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      text-align: center;
+    }
+
+    .sub {
+      text-align: center;
+      color: #666;
+      margin-bottom: 24px;
+    }
+
+    .search-box {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr auto;
+    }
+
+    input, button {
+      font-size: 16px;
+      border-radius: 14px;
+      border: 1px solid #ddd;
+      padding: 13px 14px;
+    }
+
+    input {
+      width: 100%;
+      background: #fafafa;
+    }
+
+    button {
+      border: none;
+      background: #ffb84d;
+      color: #222;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #ffa927;
+    }
+
+    .school-list {
+      margin-top: 16px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .school-item {
+      padding: 14px;
+      border: 1px solid #eee;
+      border-radius: 16px;
+      background: #fffdf8;
+      cursor: pointer;
+    }
+
+    .school-item:hover {
+      border-color: #ffb84d;
+      background: #fff5df;
+    }
+
+    .school-name {
+      font-weight: 800;
+      font-size: 17px;
+    }
+
+    .school-info {
+      margin-top: 5px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .selected {
+      margin-top: 22px;
+      padding: 16px;
+      border-radius: 18px;
+      background: #f0fbff;
+      border: 1px solid #c9ecf8;
+      display: none;
+    }
+
+    .date-row {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr auto;
+      margin-top: 14px;
+    }
+
+    .meal-result {
+      margin-top: 22px;
+      display: none;
+    }
+
+    .meal-title {
+      font-size: 22px;
+      font-weight: 900;
+      margin-bottom: 12px;
+    }
+
+    .menu {
+      background: #fff8ed;
+      border-radius: 18px;
+      padding: 18px;
+      font-size: 20px;
+      line-height: 1.8;
+      font-weight: 700;
+    }
+
+    .detail {
+      margin-top: 14px;
+      padding: 14px;
+      background: #f7f7f7;
+      border-radius: 16px;
+      line-height: 1.7;
+      color: #555;
+      font-size: 15px;
+    }
+
+    .message {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 16px;
+      background: #fff0f0;
+      color: #b23b3b;
+      display: none;
+    }
+
+    .loading {
+      margin-top: 18px;
+      text-align: center;
+      font-weight: 700;
+      display: none;
+    }
+
+    @media (max-width: 560px) {
+      .search-box, .date-row {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .menu {
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <h1>🍱 학교 급식 조회</h1>
+      <p class="sub">학교를 검색하고 날짜를 고르면 급식 정보가 나와요.</p>
+
+      <div class="search-box">
+        <input id="schoolInput" type="text" placeholder="예: 한내초등학교, 이천초등학교" />
+        <button onclick="searchSchool()">학교 검색</button>
+      </div>
+
+      <div id="loading" class="loading">조회 중입니다...</div>
+      <div id="message" class="message"></div>
+      <div id="schoolList" class="school-list"></div>
+
+      <div id="selectedBox" class="selected">
+        <strong>선택한 학교</strong>
+        <div id="selectedSchoolText"></div>
+
+        <div class="date-row">
+          <input id="mealDate" type="date" />
+          <button onclick="getMeal()">급식 보기</button>
+        </div>
+      </div>
+
+      <div id="mealResult" class="meal-result">
+        <div id="mealTitle" class="meal-title"></div>
+        <div id="mealMenu" class="menu"></div>
+        <div id="mealDetail" class="detail"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let selectedSchool = null;
+
+    const schoolInput = document.getElementById("schoolInput");
+    const schoolList = document.getElementById("schoolList");
+    const selectedBox = document.getElementById("selectedBox");
+    const selectedSchoolText = document.getElementById("selectedSchoolText");
+    const mealDate = document.getElementById("mealDate");
+    const mealResult = document.getElementById("mealResult");
+    const mealTitle = document.getElementById("mealTitle");
+    const mealMenu = document.getElementById("mealMenu");
+    const mealDetail = document.getElementById("mealDetail");
+    const message = document.getElementById("message");
+    const loading = document.getElementById("loading");
+
+    mealDate.value = new Date().toISOString().slice(0, 10);
+
+    schoolInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") searchSchool();
+    });
+
+    function showLoading(show) {
+      loading.style.display = show ? "block" : "none";
+    }
+
+    function showMessage(text) {
+      message.textContent = text;
+      message.style.display = text ? "block" : "none";
+    }
+
+    function clearMeal() {
+      mealResult.style.display = "none";
+      mealTitle.textContent = "";
+      mealMenu.innerHTML = "";
+      mealDetail.innerHTML = "";
+    }
+
+    async function searchSchool() {
+      const keyword = schoolInput.value.trim();
+
+      if (!keyword) {
+        showMessage("학교 이름을 입력해 주세요.");
+        return;
+      }
+
+      selectedSchool = null;
+      schoolList.innerHTML = "";
+      selectedBox.style.display = "none";
+      clearMeal();
+      showMessage("");
+      showLoading(true);
+
+      try {
+        const url =
+          "https://open.neis.go.kr/hub/schoolInfo" +
+          "?Type=xml" +
+          "&pIndex=1" +
+          "&pSize=20" +
+          "&SCHUL_NM=" + encodeURIComponent(keyword);
+
+        const xmlText = await fetchText(url);
+        const xml = new DOMParser().parseFromString(xmlText, "text/xml");
+
+        const rows = [...xml.querySelectorAll("row")];
+
+        if (rows.length === 0) {
+          showMessage("검색된 학교가 없습니다. 학교명을 조금 다르게 입력해 보세요.");
+          return;
+        }
+
+        rows.forEach(row => {
+          const school = {
+            name: getText(row, "SCHUL_NM"),
+            region: getText(row, "ATPT_OFCDC_SC_NM"),
+            officeCode: getText(row, "ATPT_OFCDC_SC_CODE"),
+            schoolCode: getText(row, "SD_SCHUL_CODE"),
+            address: getText(row, "ORG_RDNMA"),
+            type: getText(row, "SCHUL_KND_SC_NM")
+          };
+
+          const item = document.createElement("div");
+          item.className = "school-item";
+          item.innerHTML = `
+            <div class="school-name">${school.name}</div>
+            <div class="school-info">${school.region} · ${school.type}</div>
+            <div class="school-info">${school.address || ""}</div>
+          `;
+
+          item.onclick = () => selectSchool(school);
+          schoolList.appendChild(item);
+        });
+
+      } catch (error) {
+        console.error(error);
+        showMessage("학교 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function selectSchool(school) {
+      selectedSchool = school;
+      selectedBox.style.display = "block";
+      selectedSchoolText.innerHTML = `
+        ${school.name}<br>
+        <small>${school.region} · 학교코드 ${school.schoolCode}</small>
+      `;
+      clearMeal();
+      showMessage("");
+      window.scrollTo({ top: selectedBox.offsetTop - 20, behavior: "smooth" });
+    }
+
+    async function getMeal() {
+      if (!selectedSchool) {
+        showMessage("먼저 학교를 선택해 주세요.");
+        return;
+      }
+
+      const dateValue = mealDate.value;
+      if (!dateValue) {
+        showMessage("날짜를 선택해 주세요.");
+        return;
+      }
+
+      const ymd = dateValue.replaceAll("-", "");
+
+      clearMeal();
+      showMessage("");
+      showLoading(true);
+
+      try {
+        const url =
+          "https://open.neis.go.kr/hub/mealServiceDietInfo" +
+          "?Type=xml" +
+          "&ATPT_OFCDC_SC_CODE=" + selectedSchool.officeCode +
+          "&SD_SCHUL_CODE=" + selectedSchool.schoolCode +
+          "&MLSV_YMD=" + ymd;
+
+        const xmlText = await fetchText(url);
+        const xml = new DOMParser().parseFromString(xmlText, "text/xml");
+
+        const rows = [...xml.querySelectorAll("row")];
+
+        if (rows.length === 0) {
+          showMessage("해당 날짜의 급식 정보가 없습니다.");
+          return;
+        }
+
+        const row = rows[0];
+
+        const schoolName = getText(row, "SCHUL_NM");
+        const mealType = getText(row, "MMEAL_SC_NM");
+        const date = getText(row, "MLSV_YMD");
+        const dish = getText(row, "DDISH_NM");
+        const origin = getText(row, "ORPLC_INFO");
+        const calorie = getText(row, "CAL_INFO");
+        const nutrition = getText(row, "NTR_INFO");
+
+        mealTitle.textContent = `${formatDate(date)} ${schoolName} ${mealType}`;
+
+        mealMenu.innerHTML = cleanMenu(dish);
+
+        mealDetail.innerHTML = `
+          <strong>열량</strong><br>${calorie || "정보 없음"}<br><br>
+          <strong>원산지 정보</strong><br>${cleanText(origin) || "정보 없음"}<br><br>
+          <strong>영양 정보</strong><br>${cleanText(nutrition) || "정보 없음"}
+        `;
+
+        mealResult.style.display = "block";
+
+      } catch (error) {
+        console.error(error);
+        showMessage("급식 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    async function fetchText(url) {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("HTTP 오류: " + response.status);
+      }
+      return await response.text();
+    }
+
+    function getText(parent, tagName) {
+      const el = parent.querySelector(tagName);
+      return el ? el.textContent.trim() : "";
+    }
+
+    function cleanMenu(text) {
+      if (!text) return "급식 정보 없음";
+
+      return text
+        .replace(/<br\s*\/?>/gi, "\n")
+        .split("\n")
+        .map(item => item.trim())
+        .filter(Boolean)
+        .map(item => removeAllergyNumber(item))
+        .map(item => `🍽️ ${item}`)
+        .join("<br>");
+    }
+
+    function cleanText(text) {
+      if (!text) return "";
+      return text
+        .replace(/<br\s*\/?>/gi, "<br>")
+        .replace(/\n/g, "<br>");
+    }
+
+    function removeAllergyNumber(text) {
+      return text
+        .replace(/\([0-9.,]+\)/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function formatDate(yyyymmdd) {
+      if (!yyyymmdd || yyyymmdd.length !== 8) return "";
+      const y = yyyymmdd.slice(0, 4);
+      const m = yyyymmdd.slice(4, 6);
+      const d = yyyymmdd.slice(6, 8);
+      return `${y}.${m}.${d}`;
+    }
+  </script>
+</body>
+</html>
